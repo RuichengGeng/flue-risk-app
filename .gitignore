@@ -3,6 +3,7 @@ dist/
 artifacts/
 .flue-workspace/
 .env
+.gh-config/
 npm-debug.log*
 __pycache__/
 *.pyc
