@@ -65,6 +65,27 @@ Excel files are written under `artifacts/` and exposed by the dev server at `/ar
 - `Export the latest result to Excel.`
 - `Price a one-year call with spot 100, strike 105, rate 0.04, and vol 0.2.`
 
+## Portfolio Upload
+
+The browser page includes a Portfolio Intake panel for user-provided portfolio data.
+
+Supported in this version:
+
+- CSV upload
+- client-side column normalization
+- parsed-row preview
+- parser warnings
+- deterministic demo VaR through `calculate_uploaded_var`
+- CSV template download at `/templates/portfolio.csv`
+
+Expected columns:
+
+```csv
+trader,contract,asset_class,product,sector,position,component_var,price,vol
+```
+
+`component_var` is optional. When it is missing, the demo uses a deterministic mock rule based on absolute position, price, and volatility. Screenshot/image intake is intentionally marked as a next step because this local text route does not yet include a vision/OCR worker.
+
 ## Test
 
 ```bash

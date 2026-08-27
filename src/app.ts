@@ -6,6 +6,15 @@ import { RiskAgent } from './agents/risk-agent.ts';
 
 const app = new Hono();
 
+const portfolioTemplate = `trader,contract,asset_class,product,sector,position,component_var,price,vol
+Alice,BZV6,Commodity,Brent,Oil,100,450000,,
+Alice,BZX6,Commodity,Brent,Oil,80,310000,,
+Alice,CLZ6,Commodity,WTI,Oil,120,280000,,
+Alice,AAPL,Equity,AAPL,Technology,500,160000,,
+Alice,NVDA,Equity,NVDA,Technology,300,240000,,
+Uploaded,OPT_CALL_105,Option,AAPL,Technology,10,,100,0.2
+`;
+
 const demoPage = String.raw`<!doctype html>
 <html lang="en">
   <head>
@@ -86,6 +95,62 @@ const demoPage = String.raw`<!doctype html>
         flex-wrap: wrap;
         gap: 8px;
         margin: 18px 0;
+      }
+
+      .intake {
+        background: #fff;
+        border: 1px solid #d9e0ea;
+        border-radius: 8px;
+        padding: 14px;
+        margin-bottom: 14px;
+      }
+
+      .intake-header {
+        display: flex;
+        justify-content: space-between;
+        gap: 12px;
+        align-items: center;
+        margin-bottom: 10px;
+      }
+
+      .intake-title {
+        font-weight: 700;
+      }
+
+      .upload-row {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 10px;
+        align-items: center;
+      }
+
+      input[type="file"] {
+        max-width: 360px;
+      }
+
+      .preview {
+        display: none;
+        margin-top: 12px;
+        overflow-x: auto;
+      }
+
+      .preview.visible {
+        display: block;
+      }
+
+      .warnings {
+        display: none;
+        margin-top: 10px;
+        color: #8a5a00;
+        background: #fff8e6;
+        border: 1px solid #f0d58a;
+        border-radius: 6px;
+        padding: 9px 11px;
+        font-size: 14px;
+      }
+
+      .warnings.visible {
+        display: block;
       }
 
       button {
@@ -255,6 +320,23 @@ const demoPage = String.raw`<!doctype html>
         <button data-prompt="Price a one-year call with spot 100, strike 105, rate 0.04, and vol 0.2.">Price Option</button>
       </div>
 
+      <section class="intake">
+        <div class="intake-header">
+          <div>
+            <div class="intake-title">Portfolio Intake</div>
+            <p class="muted">Upload a CSV portfolio, preview parsed rows, then ask the agent to calculate VaR.</p>
+          </div>
+          <a href="/templates/portfolio.csv">Download CSV template</a>
+        </div>
+        <div class="upload-row">
+          <input id="portfolioFile" type="file" accept=".csv,text/csv,image/*" />
+          <button id="calculateUpload" type="button" disabled>Calculate Uploaded VaR</button>
+          <span id="uploadStatus" class="muted"></span>
+        </div>
+        <div id="uploadWarnings" class="warnings"></div>
+        <div id="portfolioPreview" class="preview"></div>
+      </section>
+
       <section id="chat" class="chat" aria-live="polite"></section>
 
       <form id="form">
@@ -271,7 +353,14 @@ const demoPage = String.raw`<!doctype html>
       const status = document.querySelector("#status");
       const send = document.querySelector("#send");
       const developerMode = document.querySelector("#developerMode");
+      const portfolioFile = document.querySelector("#portfolioFile");
+      const calculateUpload = document.querySelector("#calculateUpload");
+      const uploadStatus = document.querySelector("#uploadStatus");
+      const uploadWarnings = document.querySelector("#uploadWarnings");
+      const portfolioPreview = document.querySelector("#portfolioPreview");
       let lastHistory;
+      let uploadedRows = [];
+      let uploadWarningList = [];
 
       function textFromPart(part) {
         if (part.type === "text") return part.text;
@@ -380,6 +469,138 @@ const demoPage = String.raw`<!doctype html>
         return chunks.join("");
       }
 
+      function parseCsv(text) {
+        const rows = [];
+        let row = [];
+        let cell = "";
+        let inQuotes = false;
+        for (let i = 0; i < text.length; i += 1) {
+          const char = text[i];
+          const next = text[i + 1];
+          if (char === '"' && next === '"') {
+            cell += '"';
+            i += 1;
+          } else if (char === '"') {
+            inQuotes = !inQuotes;
+          } else if (char === "," && !inQuotes) {
+            row.push(cell);
+            cell = "";
+          } else if ((char === "\n" || char === "\r") && !inQuotes) {
+            if (char === "\r" && next === "\n") i += 1;
+            row.push(cell);
+            if (row.some((value) => value.trim())) rows.push(row);
+            row = [];
+            cell = "";
+          } else {
+            cell += char;
+          }
+        }
+        row.push(cell);
+        if (row.some((value) => value.trim())) rows.push(row);
+        if (!rows.length) return [];
+        const headers = rows[0].map((header) => normalizeHeader(header));
+        return rows.slice(1).map((values) =>
+          Object.fromEntries(headers.map((header, index) => [header, (values[index] || "").trim()])),
+        );
+      }
+
+      function normalizeHeader(header) {
+        return header
+          .trim()
+          .toLowerCase()
+          .replace(/[\s-]+/g, "_")
+          .replace(/[^a-z0-9_]/g, "");
+      }
+
+      function parseNumber(value) {
+        if (value === undefined || value === null || value === "") return undefined;
+        const parsed = Number(String(value).replace(/[$,%\s]/g, ""));
+        return Number.isFinite(parsed) ? parsed : undefined;
+      }
+
+      function normalizePortfolioRows(records) {
+        const warnings = [];
+        const rows = [];
+        const aliases = {
+          trader: ["trader", "book", "owner"],
+          contract: ["contract", "symbol", "ticker", "instrument"],
+          asset_class: ["asset_class", "assetclass", "class"],
+          product: ["product", "underlying", "name"],
+          sector: ["sector", "industry"],
+          position: ["position", "qty", "quantity", "units"],
+          component_var: ["component_var", "componentvar", "var", "component_risk"],
+          price: ["price", "spot", "market_price"],
+          vol: ["vol", "volatility"],
+        };
+
+        function get(record, key) {
+          for (const alias of aliases[key]) {
+            if (record[alias] !== undefined && record[alias] !== "") return record[alias];
+          }
+          return undefined;
+        }
+
+        records.forEach((record, index) => {
+          const contract = get(record, "contract");
+          const position = parseNumber(get(record, "position"));
+          if (!contract) {
+            warnings.push("Row " + (index + 2) + " skipped: missing contract/symbol.");
+            return;
+          }
+          if (position === undefined) {
+            warnings.push("Row " + (index + 2) + " skipped: missing numeric position.");
+            return;
+          }
+
+          const row = {
+            trader: get(record, "trader") || "Uploaded",
+            contract: String(contract),
+            asset_class: get(record, "asset_class") || "Unknown",
+            product: get(record, "product") || String(contract),
+            sector: get(record, "sector") || "Unknown",
+            position,
+          };
+          const componentVar = parseNumber(get(record, "component_var"));
+          const price = parseNumber(get(record, "price"));
+          const vol = parseNumber(get(record, "vol"));
+          if (componentVar !== undefined) row.component_var = componentVar;
+          if (price !== undefined) row.price = price;
+          if (vol !== undefined) row.vol = vol;
+          rows.push(row);
+        });
+
+        if (rows.some((row) => row.component_var === undefined)) {
+          warnings.push("Rows without component_var will use the demo mock VaR rule.");
+        }
+        return { rows, warnings };
+      }
+
+      function renderPortfolioPreview(rows, warnings) {
+        calculateUpload.disabled = rows.length === 0;
+        uploadStatus.textContent = rows.length ? rows.length + " row(s) parsed" : "";
+        uploadWarnings.className = warnings.length ? "warnings visible" : "warnings";
+        uploadWarnings.textContent = warnings.join(" ");
+        portfolioPreview.className = rows.length ? "preview visible" : "preview";
+        if (!rows.length) {
+          portfolioPreview.innerHTML = "";
+          return;
+        }
+        const columns = ["trader", "contract", "asset_class", "product", "sector", "position", "component_var", "price", "vol"];
+        portfolioPreview.innerHTML =
+          "<table><thead><tr>" +
+          columns.map((column) => "<th>" + column + "</th>").join("") +
+          "</tr></thead><tbody>" +
+          rows
+            .map(
+              (row) =>
+                "<tr>" +
+                columns.map((column) => "<td>" + escapeHtml(String(row[column] ?? "")) + "</td>").join("") +
+                "</tr>",
+            )
+            .join("") +
+          "</tbody></table>";
+      }
+
       function finalAssistantText(message) {
         const textParts = (message.parts || []).filter((part) => part.type === "text" && part.state !== "running");
         return textParts.at(-1)?.text || "";
@@ -387,6 +608,23 @@ const demoPage = String.raw`<!doctype html>
 
       function developerText(message) {
         return (message.parts || []).map(textFromPart).filter(Boolean).join("\\n");
+      }
+
+      function friendlyUserText(text) {
+        if (text.startsWith("Calculate demo VaR for this uploaded portfolio.")) {
+          const match = text.match(/Uploaded rows JSON: (\[.*?\])(?: Warnings from parser:|$)/);
+          if (match) {
+            try {
+              const rows = JSON.parse(match[1]);
+              const label = rows.length === 1 ? "row" : "rows";
+              return "Calculate VaR for uploaded portfolio (" + rows.length + " " + label + ")";
+            } catch {
+              return "Calculate VaR for uploaded portfolio";
+            }
+          }
+          return "Calculate VaR for uploaded portfolio";
+        }
+        return text;
       }
 
       function friendlyStatus(history, submissionId) {
@@ -410,8 +648,9 @@ const demoPage = String.raw`<!doctype html>
         chat.innerHTML = "";
         const showDeveloper = developerMode.checked;
         for (const message of history.messages || []) {
-          const content =
+          const rawContent =
             showDeveloper || message.role === "user" ? developerText(message) : finalAssistantText(message);
+          const content = !showDeveloper && message.role === "user" ? friendlyUserText(rawContent) : rawContent;
           if (!content) continue;
           const div = document.createElement("div");
           div.className = "message " + (message.role === "user" ? "user" : "assistant");
@@ -487,6 +726,42 @@ const demoPage = String.raw`<!doctype html>
         if (lastHistory) render(lastHistory);
       });
 
+      portfolioFile.addEventListener("change", async () => {
+        const file = portfolioFile.files?.[0];
+        uploadedRows = [];
+        uploadWarningList = [];
+        calculateUpload.disabled = true;
+        portfolioPreview.innerHTML = "";
+        portfolioPreview.className = "preview";
+        uploadWarnings.className = "warnings";
+        uploadWarnings.textContent = "";
+        if (!file) return;
+
+        if (!file.name.toLowerCase().endsWith(".csv")) {
+          uploadStatus.textContent = "Screenshot/image intake is planned next; please use CSV for this version.";
+          uploadWarningList = ["This local demo route currently supports CSV parsing. Screenshot OCR needs a vision intake worker."];
+          renderPortfolioPreview([], uploadWarningList);
+          return;
+        }
+
+        uploadStatus.textContent = "Parsing...";
+        const text = await file.text();
+        const parsed = parseCsv(text);
+        const normalized = normalizePortfolioRows(parsed);
+        uploadedRows = normalized.rows;
+        uploadWarningList = normalized.warnings;
+        renderPortfolioPreview(uploadedRows, uploadWarningList);
+      });
+
+      calculateUpload.addEventListener("click", async () => {
+        if (!uploadedRows.length) return;
+        const body =
+          "Calculate demo VaR for this uploaded portfolio. Use calculate_uploaded_var first, then show total VaR and component risk. Uploaded rows JSON: " +
+          JSON.stringify(uploadedRows) +
+          (uploadWarningList.length ? " Warnings from parser: " + uploadWarningList.join(" ") : "");
+        await sendMessage(body);
+      });
+
       chat.innerHTML = '<div class="message assistant">Open the first prompt or type your own question.</div>';
     </script>
   </body>
@@ -496,13 +771,25 @@ app.get('/', (context) => context.html(demoPage));
 
 app.route('/agents/risk', createAgentRouter(RiskAgent));
 
+app.get('/templates/portfolio.csv', () => {
+  return new Response(portfolioTemplate, {
+    headers: {
+      'content-type': 'text/csv; charset=utf-8',
+      'content-disposition': 'attachment; filename="portfolio-template.csv"',
+    },
+  });
+});
+
 app.get('/artifacts/:filename', async (context) => {
   const filename = context.req.param('filename').replace(/[^A-Za-z0-9._-]/g, '');
   const path = resolve(process.cwd(), 'artifacts', filename);
   const body = await readFile(path);
+  const contentType = filename.endsWith('.png')
+    ? 'image/png'
+    : 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet';
   return new Response(body, {
     headers: {
-      'content-type': 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+      'content-type': contentType,
       'content-disposition': `attachment; filename="${filename}"`,
     },
   });

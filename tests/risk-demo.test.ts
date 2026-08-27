@@ -6,6 +6,7 @@ import { join } from 'node:path';
 import { promisify } from 'node:util';
 import { test } from 'node:test';
 import { riskDataService } from '../src/services/csv-risk-data-service.ts';
+import { calculateUploadedPortfolioVar } from '../src/services/uploaded-var-service.ts';
 
 const execFileAsync = promisify(execFile);
 
@@ -93,4 +94,34 @@ test('creates a valid XLSX package through the Python Excel Worker capability', 
 
   const bytes = await readFile(result.path);
   assert.equal(bytes.subarray(0, 2).toString('utf8'), 'PK');
+});
+
+test('calculates demo VaR from uploaded normalized portfolio rows', () => {
+  const result = calculateUploadedPortfolioVar([
+    {
+      trader: 'Uploaded',
+      contract: 'AAPL',
+      asset_class: 'Equity',
+      product: 'AAPL',
+      sector: 'Technology',
+      position: 10,
+      component_var: 1200,
+    },
+    {
+      trader: 'Uploaded',
+      contract: 'CLZ6',
+      asset_class: 'Commodity',
+      product: 'WTI',
+      sector: 'Oil',
+      position: -5,
+      price: 80,
+      vol: 0.25,
+    },
+  ]);
+
+  assert.equal(result.total_var, 2_200);
+  assert.deepEqual(
+    result.rows.map((row) => row.component_var),
+    [1_200, 1_000],
+  );
 });
