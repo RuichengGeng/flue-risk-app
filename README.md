@@ -4,7 +4,8 @@ This demo validates Flue as the agent harness above deterministic risk data serv
 
 ## Architecture
 
-- `RiskAgent` owns reasoning, session continuity, skill instructions, and sandbox access.
+- `RiskAgent` owns reasoning, session continuity, skill instructions, sandbox access, and MCP tool mounting.
+- The hosted VaR MCP server at `https://var.hpapacvarserver.com/mcp` provides real position VaR through `calc_var_for_positions`.
 - CSV-backed risk services own positions, total VaR, and component-risk retrieval.
 - Python owns deterministic numerical work:
   - `python/quant.py` prices Black-Scholes options.
@@ -60,6 +61,7 @@ Excel files are written under `artifacts/` and exposed by the dev server at `/ar
 ## Demo Prompts
 
 - `What is Alice's VaR and component risk?`
+- `Use the real VaR server for HO September 2026 delta 100 and BRN October 2026 delta 50 on valuation date 2026-07-31.`
 - `Aggregate all Brent contracts together, put all equities together, and leave WTI separate.`
 - `Now split equities by sector and show the top contributors.`
 - `Export the latest result to Excel.`
@@ -78,13 +80,21 @@ Supported in this version:
 - deterministic demo VaR through `calculate_uploaded_var`
 - CSV template download at `/templates/portfolio.csv`
 
-Expected columns:
+Expected local-demo columns:
 
 ```csv
 trader,contract,asset_class,product,sector,position,component_var,price,vol
 ```
 
 `component_var` is optional. When it is missing, the demo uses a deterministic mock rule based on absolute position, price, and volatility. Screenshot/image intake is intentionally marked as a next step because this local text route does not yet include a vision/OCR worker.
+
+Expected real-MCP columns:
+
+```csv
+curve_alias,contract_month,delta
+```
+
+The browser parser also accepts common aliases like `Px_Location`, `Contract Month`, `nondisc_DeltaPosition`, and `delta_units`. Rows with these fields are routed to the hosted Real VaR Server. If the server cannot map a curve alias, the agent reports the unmatched rows instead of substituting mock VaR.
 
 ## Test
 

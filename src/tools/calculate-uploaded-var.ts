@@ -12,6 +12,9 @@ const uploadedRowSchema = v.object({
   component_var: v.optional(v.number()),
   price: v.optional(v.number()),
   vol: v.optional(v.number()),
+  curve_alias: v.optional(v.string()),
+  contract_month: v.optional(v.string()),
+  delta: v.optional(v.number()),
 });
 
 export const calculateUploadedVar = defineTool({

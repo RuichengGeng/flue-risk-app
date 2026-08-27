@@ -6,13 +6,15 @@ import { RiskAgent } from './agents/risk-agent.ts';
 
 const app = new Hono();
 
-const portfolioTemplate = `trader,contract,asset_class,product,sector,position,component_var,price,vol
+const portfolioTemplate = `trader,contract,asset_class,product,sector,position,component_var,price,vol,curve_alias,contract_month,delta
 Alice,BZV6,Commodity,Brent,Oil,100,450000,,
 Alice,BZX6,Commodity,Brent,Oil,80,310000,,
 Alice,CLZ6,Commodity,WTI,Oil,120,280000,,
 Alice,AAPL,Equity,AAPL,Technology,500,160000,,
 Alice,NVDA,Equity,NVDA,Technology,300,240000,,
 Uploaded,OPT_CALL_105,Option,AAPL,Technology,10,,100,0.2
+Uploaded,HO_202609,Commodity,Heating Oil,Oil,,,,,HO,202609,100
+Uploaded,BRN_202610,Commodity,Brent,Oil,,,,,BRN,202610,50
 `;
 
 const demoPage = String.raw`<!doctype html>
@@ -305,7 +307,7 @@ const demoPage = String.raw`<!doctype html>
       <header>
         <div>
           <h1>Flue VaR Demo</h1>
-          <p class="muted">Risk data tools, Python analysis, Black-Scholes pricing, and Excel export.</p>
+          <p class="muted">Real VaR server, risk data tools, Python analysis, Black-Scholes pricing, and Excel export.</p>
         </div>
         <div class="top-actions">
           <div id="status" class="status">Ready</div>
@@ -315,6 +317,7 @@ const demoPage = String.raw`<!doctype html>
 
       <div class="prompts">
         <button data-prompt="What is Alice VaR and component risk?">Alice VaR</button>
+        <button data-prompt="Use the real VaR server for positions [{&quot;curve_alias&quot;:&quot;HO&quot;,&quot;contract_month&quot;:&quot;202609&quot;,&quot;delta&quot;:100},{&quot;curve_alias&quot;:&quot;BRN&quot;,&quot;contract_month&quot;:&quot;202610&quot;,&quot;delta&quot;:50}] on valuation date 2026-07-31 at 95% confidence. If rows are unmatched, explain the unmatched mappings.">Real VaR Server</button>
         <button data-prompt="Aggregate all Brent contracts together, put all equities together, and leave WTI separate.">Aggregate Risk</button>
         <button data-prompt="Export the latest result to Excel as alice-risk.xlsx.">Export Excel</button>
         <button data-prompt="Price a one-year call with spot 100, strike 105, rate 0.04, and vol 0.2.">Price Option</button>
@@ -531,6 +534,9 @@ const demoPage = String.raw`<!doctype html>
           component_var: ["component_var", "componentvar", "var", "component_risk"],
           price: ["price", "spot", "market_price"],
           vol: ["vol", "volatility"],
+          curve_alias: ["curve_alias", "px_location", "curve", "risk_factor"],
+          contract_month: ["contract_month", "contractmonth", "month", "forward_month", "contract"],
+          delta: ["delta", "delta_units", "nondisc_deltaposition"],
         };
 
         function get(record, key) {
@@ -541,14 +547,17 @@ const demoPage = String.raw`<!doctype html>
         }
 
         records.forEach((record, index) => {
-          const contract = get(record, "contract");
+          const curveAlias = get(record, "curve_alias");
+          const contractMonth = get(record, "contract_month");
+          const delta = parseNumber(get(record, "delta"));
+          const contract = get(record, "contract") || (curveAlias && contractMonth ? String(curveAlias) + "_" + String(contractMonth) : undefined);
           const position = parseNumber(get(record, "position"));
           if (!contract) {
             warnings.push("Row " + (index + 2) + " skipped: missing contract/symbol.");
             return;
           }
-          if (position === undefined) {
-            warnings.push("Row " + (index + 2) + " skipped: missing numeric position.");
+          if (position === undefined && delta === undefined) {
+            warnings.push("Row " + (index + 2) + " skipped: missing numeric position or delta.");
             return;
           }
 
@@ -558,7 +567,7 @@ const demoPage = String.raw`<!doctype html>
             asset_class: get(record, "asset_class") || "Unknown",
             product: get(record, "product") || String(contract),
             sector: get(record, "sector") || "Unknown",
-            position,
+            position: position ?? delta,
           };
           const componentVar = parseNumber(get(record, "component_var"));
           const price = parseNumber(get(record, "price"));
@@ -566,11 +575,17 @@ const demoPage = String.raw`<!doctype html>
           if (componentVar !== undefined) row.component_var = componentVar;
           if (price !== undefined) row.price = price;
           if (vol !== undefined) row.vol = vol;
+          if (curveAlias !== undefined) row.curve_alias = String(curveAlias);
+          if (contractMonth !== undefined) row.contract_month = String(contractMonth).replace(/[^0-9]/g, "");
+          if (delta !== undefined) row.delta = delta;
           rows.push(row);
         });
 
         if (rows.some((row) => row.component_var === undefined)) {
           warnings.push("Rows without component_var will use the demo mock VaR rule.");
+        }
+        if (rows.some((row) => row.curve_alias && row.contract_month && row.delta !== undefined)) {
+          warnings.push("Rows with curve_alias, contract_month, and delta can use the real VaR server.");
         }
         return { rows, warnings };
       }
@@ -585,7 +600,20 @@ const demoPage = String.raw`<!doctype html>
           portfolioPreview.innerHTML = "";
           return;
         }
-        const columns = ["trader", "contract", "asset_class", "product", "sector", "position", "component_var", "price", "vol"];
+        const columns = [
+          "trader",
+          "contract",
+          "asset_class",
+          "product",
+          "sector",
+          "position",
+          "component_var",
+          "price",
+          "vol",
+          "curve_alias",
+          "contract_month",
+          "delta",
+        ];
         portfolioPreview.innerHTML =
           "<table><thead><tr>" +
           columns.map((column) => "<th>" + column + "</th>").join("") +
@@ -756,7 +784,7 @@ const demoPage = String.raw`<!doctype html>
       calculateUpload.addEventListener("click", async () => {
         if (!uploadedRows.length) return;
         const body =
-          "Calculate demo VaR for this uploaded portfolio. Use calculate_uploaded_var first, then show total VaR and component risk. Uploaded rows JSON: " +
+          "Calculate VaR for this uploaded portfolio. If rows include curve_alias, contract_month, and delta, use the Real VaR Server first with valuation_date 2026-07-31 and confidence 0.95. Otherwise use calculate_uploaded_var. Show total VaR, component risk, and unmatched rows if any. Uploaded rows JSON: " +
           JSON.stringify(uploadedRows) +
           (uploadWarningList.length ? " Warnings from parser: " + uploadWarningList.join(" ") : "");
         await sendMessage(body);
