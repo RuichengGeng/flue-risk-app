@@ -1,0 +1,26 @@
+{
+  "name": "flue-var-demo",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "vite dev",
+    "build": "vite build",
+    "agent": "flue run src/agents/risk-agent.ts",
+    "test": "node --test --import tsx tests/*.test.ts",
+    "check": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@flue/runtime": "^2.0.3",
+    "@flue/vite": "^2.0.3",
+    "hono": "^4.6.20",
+    "valibot": "^1.1.0",
+    "vite": "^8.2.2"
+  },
+  "devDependencies": {
+    "@flue/cli": "^2.0.3",
+    "@types/node": "^24.3.0",
+    "tsx": "^4.20.0",
+    "typescript": "^5.9.2"
+  }
+}

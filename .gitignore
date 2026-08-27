@@ -1,0 +1,8 @@
+node_modules/
+dist/
+artifacts/
+.flue-workspace/
+.env
+npm-debug.log*
+__pycache__/
+*.pyc

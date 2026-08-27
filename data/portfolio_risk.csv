@@ -1,0 +1,10 @@
+trader,contract,asset_class,product,sector,position,component_var
+Alice,BZV6,Commodity,Brent,Oil,100,450000
+Alice,BZX6,Commodity,Brent,Oil,80,310000
+Alice,CLZ6,Commodity,WTI,Oil,120,280000
+Alice,AAPL,Equity,AAPL,Technology,500,160000
+Alice,NVDA,Equity,NVDA,Technology,300,240000
+Bob,BZV6,Commodity,Brent,Oil,60,210000
+Bob,CLZ6,Commodity,WTI,Oil,90,185000
+Bob,MSFT,Equity,MSFT,Technology,250,120000
+Bob,JPM,Equity,JPM,Financials,400,95000
