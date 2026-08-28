@@ -125,3 +125,26 @@ test('calculates demo VaR from uploaded normalized portfolio rows', () => {
     [1_200, 1_000],
   );
 });
+
+test('returns not implemented from the ad-hoc analysis worker scaffold', async () => {
+  const dir = await mkdtemp(join(tmpdir(), 'flue-var-demo-'));
+  const input = join(dir, 'ad-hoc.json');
+  await writeFile(
+    input,
+    JSON.stringify({
+      task: 'Calculate a custom risk diagnostic.',
+      tables: {
+        component_risk: [
+          { product: 'Brent', component_var: 760_000 },
+          { product: 'WTI', component_var: 280_000 },
+        ],
+      },
+      expected_outputs: [{ kind: 'summary' }],
+    }),
+  );
+
+  const { stdout } = await execFileAsync('python3', ['python/ad_hoc_analysis.py', '--input', input]);
+  const result = JSON.parse(stdout) as { status: string; diagnostics: string[] };
+  assert.equal(result.status, 'not_implemented');
+  assert.ok(result.diagnostics.some((item) => item.includes('component_risk: 2 rows')));
+});

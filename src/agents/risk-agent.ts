@@ -3,6 +3,7 @@
 import { useMcpConnection, useModel, useSandbox, useSkill, useTool } from '@flue/runtime';
 import { local } from '@flue/runtime/node';
 import { positionVarMcp } from '../connections/position-var-mcp.ts';
+import { runAdHocAnalysis } from '../tools/ad-hoc-analysis.ts';
 import { createExcelWorkbook } from '../tools/excel-worker.ts';
 import { calculateUploadedVar } from '../tools/calculate-uploaded-var.ts';
 import { getComponentRisk } from '../tools/get-component-risk.ts';
@@ -21,6 +22,7 @@ export function RiskAgent() {
   useTool(getComponentRisk);
   useTool(priceOption);
   useTool(runDataAnalysis);
+  useTool(runAdHocAnalysis);
   useTool(createExcelWorkbook);
   useTool(calculateUploadedVar);
   useSkill(riskAnalysisSkill);
@@ -40,6 +42,8 @@ Architectural rules:
 - If a user uploads rows with curve_alias, contract_month, and delta fields, prefer mcp__position_var__calc_var_for_positions over calculate_uploaded_var.
 - If the Real VaR Server returns unmatched rows or no curve mapping, report that directly and do not invent VaR numbers.
 - For follow-up aggregation, grouping, ranking, filtering, sorting, or bucketing, use run_data_analysis.
+- For custom ad-hoc analysis that does not fit the structured Data Analysis spec, use run_ad_hoc_analysis with explicit input tables and a clear task.
+- If run_ad_hoc_analysis returns not_implemented, explain that the Research Sandbox interface is ready but the execution implementation still needs to be filled in.
 - For workbook export, use create_excel_workbook on the current structured result.
 - For uploaded CSV portfolio input, use calculate_uploaded_var before presenting VaR or component risk.
 - Use calculate_uploaded_var only for the local demo portfolio shape when real MCP-required fields are absent.
@@ -54,5 +58,6 @@ Useful demo prompts:
 - Export the latest result to Excel.
 - Price a one-year call with spot 100, strike 105, rate 0.04, and vol 0.2.
 - Calculate VaR for this uploaded portfolio.
+- Run an ad-hoc research sandbox task over the latest component risk table.
 `;
 }

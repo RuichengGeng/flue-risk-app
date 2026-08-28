@@ -319,6 +319,7 @@ const demoPage = String.raw`<!doctype html>
         <button data-prompt="What is Alice VaR and component risk?">Alice VaR</button>
         <button data-prompt="Use the real VaR server for positions [{&quot;curve_alias&quot;:&quot;HO&quot;,&quot;contract_month&quot;:&quot;202609&quot;,&quot;delta&quot;:100},{&quot;curve_alias&quot;:&quot;BRN&quot;,&quot;contract_month&quot;:&quot;202610&quot;,&quot;delta&quot;:50}] on valuation date 2026-07-31 at 95% confidence. If rows are unmatched, explain the unmatched mappings.">Real VaR Server</button>
         <button data-prompt="Aggregate all Brent contracts together, put all equities together, and leave WTI separate.">Aggregate Risk</button>
+        <button data-prompt="Run an ad-hoc research sandbox task over Alice's component risk table: calculate any extra custom diagnostic you think is useful, but use the Research Sandbox capability rather than mental math.">Ad-Hoc Sandbox</button>
         <button data-prompt="Export the latest result to Excel as alice-risk.xlsx.">Export Excel</button>
         <button data-prompt="Price a one-year call with spot 100, strike 105, rate 0.04, and vol 0.2.">Price Option</button>
       </div>
@@ -666,6 +667,7 @@ const demoPage = String.raw`<!doctype html>
           return "Retrieving risk data...";
         }
         if (latestTool.includes("analysis")) return "Analyzing data...";
+        if (latestTool.includes("ad_hoc")) return "Running research sandbox...";
         if (latestTool.includes("excel")) return "Preparing workbook...";
         if (latestTool.includes("price")) return "Running pricing...";
         return "Working...";

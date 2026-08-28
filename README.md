@@ -10,6 +10,7 @@ This demo validates Flue as the agent harness above deterministic risk data serv
 - Python owns deterministic numerical work:
   - `python/quant.py` prices Black-Scholes options.
   - `python/data_analysis.py` powers the Data Analysis capability.
+  - `python/ad_hoc_analysis.py` defines the Research Sandbox interface for future custom Python analysis.
   - `python/excel_worker.py` powers the Excel Worker capability.
 - The agent uses broad capabilities rather than one-off aggregation/export tools.
 
@@ -64,6 +65,7 @@ Excel files are written under `artifacts/` and exposed by the dev server at `/ar
 - `Use the real VaR server for HO September 2026 delta 100 and BRN October 2026 delta 50 on valuation date 2026-07-31.`
 - `Aggregate all Brent contracts together, put all equities together, and leave WTI separate.`
 - `Now split equities by sector and show the top contributors.`
+- `Run an ad-hoc research sandbox task over Alice's component risk table.`
 - `Export the latest result to Excel.`
 - `Price a one-year call with spot 100, strike 105, rate 0.04, and vol 0.2.`
 
