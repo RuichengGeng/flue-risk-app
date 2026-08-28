@@ -4,7 +4,10 @@ This demo validates Flue as the agent harness above deterministic risk data serv
 
 ## Architecture
 
-- `RiskAgent` owns reasoning, session continuity, skill instructions, sandbox access, and MCP tool mounting.
+- `SupervisorAgent` owns user-facing routing across risk, market, performance, and reporting domains.
+- Specialist subagents under `src/subagents/` scaffold market, performance, and reporting workflows.
+- Capability modules under `src/capabilities/` define typed interfaces, service classes, and Flue tool wrappers.
+- `RiskAgent` remains available as the direct risk-analysis agent for focused VaR workflows.
 - The hosted VaR MCP server at `https://var.hpapacvarserver.com/mcp` provides real position VaR through `calc_var_for_positions`.
 - CSV-backed risk services own positions, total VaR, and component-risk retrieval.
 - Python owns deterministic numerical work:
@@ -12,7 +15,23 @@ This demo validates Flue as the agent harness above deterministic risk data serv
   - `python/data_analysis.py` powers the Data Analysis capability.
   - `python/ad_hoc_analysis.py` defines the Research Sandbox interface for future custom Python analysis.
   - `python/excel_worker.py` powers the Excel Worker capability.
-- The agent uses broad capabilities rather than one-off aggregation/export tools.
+- The agents use broad capabilities rather than one-off aggregation/export tools.
+
+Current scalable layout:
+
+```text
+src/agents/supervisor-agent.ts
+src/agents/risk-agent.ts
+src/subagents/market-analyst.ts
+src/subagents/performance-analyst.ts
+src/subagents/report-analyst.ts
+src/capabilities/risk-analysis/use-risk-capabilities.ts
+src/capabilities/market-analysis/
+src/capabilities/performance-metrics/
+src/capabilities/reporting/
+```
+
+The market, performance, and reporting services intentionally return `not_implemented` until their business implementations are provided.
 
 ## Setup
 
@@ -43,10 +62,10 @@ Local server:
 npm run dev
 ```
 
-Then send messages to:
+The browser uses the supervisor route. You can also send messages directly:
 
 ```bash
-curl -X POST http://localhost:5173/agents/risk/alice-demo \
+curl -X POST http://localhost:5173/agents/supervisor/alice-demo \
   -H 'content-type: application/json' \
   -d '{"kind":"user","body":"What is Alice'\''s VaR and component risk?"}'
 ```
@@ -54,7 +73,7 @@ curl -X POST http://localhost:5173/agents/risk/alice-demo \
 Read history:
 
 ```bash
-curl "http://localhost:5173/agents/risk/alice-demo?view=history"
+curl "http://localhost:5173/agents/supervisor/alice-demo?view=history"
 ```
 
 Excel files are written under `artifacts/` and exposed by the dev server at `/artifacts/<filename>`.

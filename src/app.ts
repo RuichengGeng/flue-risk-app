@@ -3,6 +3,7 @@ import { resolve } from 'node:path';
 import { createAgentRouter } from '@flue/runtime/routing';
 import { Hono } from 'hono';
 import { RiskAgent } from './agents/risk-agent.ts';
+import { SupervisorAgent } from './agents/supervisor-agent.ts';
 
 const app = new Hono();
 
@@ -307,7 +308,7 @@ const demoPage = String.raw`<!doctype html>
       <header>
         <div>
           <h1>Flue VaR Demo</h1>
-          <p class="muted">Real VaR server, risk data tools, Python analysis, Black-Scholes pricing, and Excel export.</p>
+          <p class="muted">Supervisor routing, Real VaR server, Python analysis, specialist agents, and Excel export.</p>
         </div>
         <div class="top-actions">
           <div id="status" class="status">Ready</div>
@@ -320,6 +321,8 @@ const demoPage = String.raw`<!doctype html>
         <button data-prompt="Use the real VaR server for positions [{&quot;curve_alias&quot;:&quot;HO&quot;,&quot;contract_month&quot;:&quot;202609&quot;,&quot;delta&quot;:100},{&quot;curve_alias&quot;:&quot;BRN&quot;,&quot;contract_month&quot;:&quot;202610&quot;,&quot;delta&quot;:50}] on valuation date 2026-07-31 at 95% confidence. If rows are unmatched, explain the unmatched mappings.">Real VaR Server</button>
         <button data-prompt="Aggregate all Brent contracts together, put all equities together, and leave WTI separate.">Aggregate Risk</button>
         <button data-prompt="Run an ad-hoc research sandbox task over Alice's component risk table: calculate any extra custom diagnostic you think is useful, but use the Research Sandbox capability rather than mental math.">Ad-Hoc Sandbox</button>
+        <button data-prompt="Ask the market analyst to explain what market drivers would be needed to explain a VaR increase in an oil portfolio.">Market Analyst</button>
+        <button data-prompt="Ask the performance analyst to calculate returns, Sharpe, drawdown, and PnL attribution for portfolio Alice.">Performance Analyst</button>
         <button data-prompt="Export the latest result to Excel as alice-risk.xlsx.">Export Excel</button>
         <button data-prompt="Price a one-year call with spot 100, strike 105, rate 0.04, and vol 0.2.">Price Option</button>
       </div>
@@ -351,6 +354,7 @@ const demoPage = String.raw`<!doctype html>
 
     <script>
       const agentId = "demo-" + Math.random().toString(36).slice(2, 8);
+      const agentRoute = "/agents/supervisor";
       const chat = document.querySelector("#chat");
       const form = document.querySelector("#form");
       const input = document.querySelector("#input");
@@ -699,7 +703,7 @@ const demoPage = String.raw`<!doctype html>
       }
 
       async function refresh() {
-        const response = await fetch("/agents/risk/" + agentId + "?view=history");
+        const response = await fetch(agentRoute + "/" + agentId + "?view=history");
         if (response.ok) {
           const history = await response.json();
           render(history);
@@ -715,7 +719,7 @@ const demoPage = String.raw`<!doctype html>
       async function sendMessage(body) {
         send.disabled = true;
         status.textContent = "Running...";
-        const response = await fetch("/agents/risk/" + agentId, {
+        const response = await fetch(agentRoute + "/" + agentId, {
           method: "POST",
           headers: { "content-type": "application/json" },
           body: JSON.stringify({ kind: "user", body }),
@@ -800,6 +804,7 @@ const demoPage = String.raw`<!doctype html>
 app.get('/', (context) => context.html(demoPage));
 
 app.route('/agents/risk', createAgentRouter(RiskAgent));
+app.route('/agents/supervisor', createAgentRouter(SupervisorAgent));
 
 app.get('/templates/portfolio.csv', () => {
   return new Response(portfolioTemplate, {

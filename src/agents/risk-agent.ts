@@ -1,31 +1,13 @@
 'use agent';
 
-import { useMcpConnection, useModel, useSandbox, useSkill, useTool } from '@flue/runtime';
+import { useModel, useSandbox } from '@flue/runtime';
 import { local } from '@flue/runtime/node';
-import { positionVarMcp } from '../connections/position-var-mcp.ts';
-import { runAdHocAnalysis } from '../tools/ad-hoc-analysis.ts';
-import { createExcelWorkbook } from '../tools/excel-worker.ts';
-import { calculateUploadedVar } from '../tools/calculate-uploaded-var.ts';
-import { getComponentRisk } from '../tools/get-component-risk.ts';
-import { getTraderPositions } from '../tools/get-trader-positions.ts';
-import { getTraderVar } from '../tools/get-trader-var.ts';
-import { priceOption } from '../tools/price-option.ts';
-import { runDataAnalysis } from '../tools/data-analysis.ts';
-import riskAnalysisSkill from '../skills/risk-analysis/SKILL.md';
+import { useRiskCapabilities } from '../capabilities/risk-analysis/use-risk-capabilities.ts';
 
 export function RiskAgent() {
   useModel(process.env.MODEL ?? 'deepseek/deepseek-v4-flash');
   useSandbox(local({ cwd: process.cwd() }));
-  useMcpConnection(positionVarMcp);
-  useTool(getTraderPositions);
-  useTool(getTraderVar);
-  useTool(getComponentRisk);
-  useTool(priceOption);
-  useTool(runDataAnalysis);
-  useTool(runAdHocAnalysis);
-  useTool(createExcelWorkbook);
-  useTool(calculateUploadedVar);
-  useSkill(riskAnalysisSkill);
+  useRiskCapabilities();
 
   return `
 You are a risk-analysis agent for a local VaR demo.
