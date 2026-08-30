@@ -7,6 +7,7 @@ This demo validates Flue as the agent harness above deterministic risk data serv
 - `SupervisorAgent` owns user-facing routing across risk, market, performance, and reporting domains.
 - Specialist subagents under `src/subagents/` scaffold market, performance, and reporting workflows.
 - Capability modules under `src/capabilities/` define typed interfaces, service classes, and Flue tool wrappers.
+- `src/capabilities/coding-sandbox/` provides the coding capability for dynamic last-mile Python work over explicit input tables.
 - `RiskAgent` remains available as the direct risk-analysis agent for focused VaR workflows.
 - The hosted VaR MCP server at `https://var.hpapacvarserver.com/mcp` provides real position VaR through `calc_var_for_positions`.
 - CSV-backed risk services own positions, total VaR, and component-risk retrieval.
@@ -25,6 +26,7 @@ src/subagents/market-analyst.ts
 src/subagents/performance-analyst.ts
 src/subagents/report-analyst.ts
 src/capabilities/risk-analysis/use-risk-capabilities.ts
+src/capabilities/coding-sandbox/
 src/capabilities/market-analysis/
 src/capabilities/performance-metrics/
 src/capabilities/reporting/
@@ -35,6 +37,7 @@ The market, performance, and reporting services intentionally return `not_implem
 Last-mile dataframe and artifact work keeps stable TypeScript tool surfaces backed by one Python engine:
 
 ```text
+run_coding_sandbox      -> python/coding_sandbox.py generated-code execution
 run_data_analysis       -> python/research_sandbox.py mode=data_analysis
 create_excel_workbook   -> python/research_sandbox.py mode=excel_export
 run_ad_hoc_analysis     -> python/research_sandbox.py mode=ad_hoc_analysis
