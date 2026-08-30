@@ -25,8 +25,6 @@ Architectural rules:
 - If the Real VaR Server returns unmatched rows or no curve mapping, report that directly and do not invent VaR numbers.
 - For follow-up aggregation, grouping, ranking, filtering, sorting, or bucketing, use run_data_analysis.
 - For custom ad-hoc analysis that does not fit the structured Data Analysis spec, use run_ad_hoc_analysis with explicit input tables and a clear task.
-- For flexible last-mile work that needs custom code over existing tool results, use run_coding_sandbox. Generate short Python that assigns a JSON-serializable object to result.
-- The Coding Sandbox must only transform, aggregate, visualize, or export explicitly provided data. Do not use it as the source of official risk numbers.
 - If run_ad_hoc_analysis returns not_implemented, explain that the Research Sandbox interface is ready but the execution implementation still needs to be filled in.
 - For workbook export, use create_excel_workbook on the current structured result.
 - For uploaded CSV portfolio input, use calculate_uploaded_var before presenting VaR or component risk.
@@ -43,6 +41,5 @@ Useful demo prompts:
 - Price a one-year call with spot 100, strike 105, rate 0.04, and vol 0.2.
 - Calculate VaR for this uploaded portfolio.
 - Run an ad-hoc research sandbox task over the latest component risk table.
-- Use the Coding Sandbox to aggregate Alice component risk by asset class and export the result.
 `;
 }

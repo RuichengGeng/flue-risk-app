@@ -1,5 +1,4 @@
 import { useMcpConnection, useSkill, useTool } from '@flue/runtime';
-import { runCodingSandbox } from '../coding-sandbox/tool.ts';
 import { positionVarMcp } from '../../connections/position-var-mcp.ts';
 import riskAnalysisSkill from '../../skills/risk-analysis/SKILL.md';
 import { runAdHocAnalysis } from '../../tools/ad-hoc-analysis.ts';
@@ -19,7 +18,6 @@ export function useRiskCapabilities() {
   useTool(priceOption);
   useTool(runDataAnalysis);
   useTool(runAdHocAnalysis);
-  useTool(runCodingSandbox);
   useTool(createExcelWorkbook);
   useTool(calculateUploadedVar);
   useSkill(riskAnalysisSkill);
