@@ -1,5 +1,6 @@
 import { defineTool, type JsonValue } from '@flue/runtime';
 import * as v from 'valibot';
+import { runResearchSandbox } from './research-sandbox-runner.ts';
 
 const rowSchema = v.record(v.string(), v.unknown());
 
@@ -37,16 +38,6 @@ export const runAdHocAnalysis = defineTool({
   harness: true,
   input: adHocAnalysisInputSchema,
   async run({ data, harness }) {
-    const inputPath = `.flue-workspace/ad-hoc-analysis-${Date.now()}.json`;
-    await harness.sandbox.writeFile(inputPath, JSON.stringify(data));
-    const result = await harness.sandbox.exec(`python3 python/ad_hoc_analysis.py --input ${inputPath}`, {
-      timeoutMs: 10_000,
-    });
-
-    if (result.exitCode !== 0) {
-      throw new Error(result.stderr || 'Python ad-hoc analysis failed');
-    }
-
-    return { output: JSON.parse(result.stdout) as JsonValue };
+    return { output: (await runResearchSandbox(harness.sandbox, 'ad_hoc_analysis', data)) as JsonValue };
   },
 });

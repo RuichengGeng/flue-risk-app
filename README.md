@@ -12,9 +12,8 @@ This demo validates Flue as the agent harness above deterministic risk data serv
 - CSV-backed risk services own positions, total VaR, and component-risk retrieval.
 - Python owns deterministic numerical work:
   - `python/quant.py` prices Black-Scholes options.
-  - `python/data_analysis.py` powers the Data Analysis capability.
-  - `python/ad_hoc_analysis.py` defines the Research Sandbox interface for future custom Python analysis.
-  - `python/excel_worker.py` powers the Excel Worker capability.
+  - `python/research_sandbox.py` is the shared last-mile engine for structured analysis, standard Excel export, and future ad-hoc code execution.
+  - `python/data_analysis.py`, `python/ad_hoc_analysis.py`, and `python/excel_worker.py` remain compatibility wrappers around the shared Research Sandbox engine.
 - The agents use broad capabilities rather than one-off aggregation/export tools.
 
 Current scalable layout:
@@ -32,6 +31,14 @@ src/capabilities/reporting/
 ```
 
 The market, performance, and reporting services intentionally return `not_implemented` until their business implementations are provided.
+
+Last-mile dataframe and artifact work keeps stable TypeScript tool surfaces backed by one Python engine:
+
+```text
+run_data_analysis       -> python/research_sandbox.py mode=data_analysis
+create_excel_workbook   -> python/research_sandbox.py mode=excel_export
+run_ad_hoc_analysis     -> python/research_sandbox.py mode=ad_hoc_analysis
+```
 
 ## Setup
 

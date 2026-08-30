@@ -1,5 +1,6 @@
 import { defineTool, type JsonValue } from '@flue/runtime';
 import * as v from 'valibot';
+import { runResearchSandbox } from './research-sandbox-runner.ts';
 
 const rowSchema = v.record(v.string(), v.unknown());
 
@@ -20,18 +21,10 @@ export const createExcelWorkbook = defineTool({
   }),
   async run({ data, harness }) {
     const filename = safeWorkbookName(data.filename);
-    const inputPath = `.flue-workspace/excel-worker-${Date.now()}.json`;
     const outputPath = `artifacts/${filename}`;
-    await harness.sandbox.writeFile(inputPath, JSON.stringify(data));
-    const result = await harness.sandbox.exec(`python3 python/excel_worker.py --input ${inputPath} --output ${outputPath}`, {
-      timeoutMs: 10_000,
-    });
-
-    if (result.exitCode !== 0) {
-      throw new Error(result.stderr || 'Python Excel export failed');
-    }
-
-    const parsed = JSON.parse(result.stdout) as { path: string; row_count: number };
+    const parsed = (await runResearchSandbox(harness.sandbox, 'excel_export', data, {
+      outputPath,
+    })) as { path: string; row_count: number };
     return {
       output: {
         ...parsed,

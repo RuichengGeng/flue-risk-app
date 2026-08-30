@@ -1,5 +1,6 @@
 import { defineTool, type JsonValue } from '@flue/runtime';
 import * as v from 'valibot';
+import { runResearchSandbox } from './research-sandbox-runner.ts';
 
 const rowSchema = v.record(v.string(), v.unknown());
 
@@ -53,16 +54,6 @@ export const runDataAnalysis = defineTool({
     note: v.optional(v.string()),
   }),
   async run({ data, harness }) {
-    const inputPath = `.flue-workspace/data-analysis-${Date.now()}.json`;
-    await harness.sandbox.writeFile(inputPath, JSON.stringify(data));
-    const result = await harness.sandbox.exec(`python3 python/data_analysis.py --input ${inputPath}`, {
-      timeoutMs: 10_000,
-    });
-
-    if (result.exitCode !== 0) {
-      throw new Error(result.stderr || 'Python data analysis failed');
-    }
-
-    return { output: JSON.parse(result.stdout) as JsonValue };
+    return { output: (await runResearchSandbox(harness.sandbox, 'data_analysis', data)) as JsonValue };
   },
 });
