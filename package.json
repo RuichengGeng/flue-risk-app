@@ -11,6 +11,8 @@
     "check": "tsc --noEmit"
   },
   "dependencies": {
+    "@earendil-works/pi-agent-core": "^0.83.0",
+    "@earendil-works/pi-ai": "^0.83.0",
     "@flue/runtime": "^2.0.3",
     "@flue/vite": "^2.0.3",
     "hono": "^4.6.20",

@@ -5,6 +5,7 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { promisify } from 'node:util';
 import { test } from 'node:test';
+import { runPiCodingSession } from '../src/capabilities/pi-coding/pi-coding-session.ts';
 import { riskDataService } from '../src/services/csv-risk-data-service.ts';
 import { calculateUploadedPortfolioVar } from '../src/services/uploaded-var-service.ts';
 
@@ -147,4 +148,36 @@ test('returns not implemented from the ad-hoc analysis worker scaffold', async (
   const result = JSON.parse(stdout) as { status: string; diagnostics: string[] };
   assert.equal(result.status, 'not_implemented');
   assert.ok(result.diagnostics.some((item) => item.includes('component_risk: 2 rows')));
+});
+
+test('creates a Pi coding session through the mock adapter path', async () => {
+  const previous = process.env.PI_CODING_SESSION_MOCK;
+  process.env.PI_CODING_SESSION_MOCK = '1';
+  const writes: Record<string, string> = {};
+  const sandbox = {
+    writeFile: async (path: string, content: string) => {
+      writes[path] = content;
+    },
+    exec: async () => ({ exitCode: 0, stdout: '', stderr: '' }),
+  };
+
+  try {
+    const result = await runPiCodingSession(
+      {
+        task: 'Aggregate monthly PnL.',
+        tables: { daily_pnl: [{ date: '2026-01-01', pnl: 100 }] },
+        expected_outputs: ['summary'],
+      },
+      sandbox as never,
+    );
+    assert.equal(result.status, 'ok');
+    assert.equal(result.summary, 'Pi coding session mock completed.');
+    assert.ok(Object.keys(writes).some((path) => path.endsWith('-input.json')));
+  } finally {
+    if (previous === undefined) {
+      delete process.env.PI_CODING_SESSION_MOCK;
+    } else {
+      process.env.PI_CODING_SESSION_MOCK = previous;
+    }
+  }
 });

@@ -24,6 +24,7 @@ Routing rules:
 - For returns, PnL attribution, Sharpe, drawdown, benchmark, or portfolio performance analysis, delegate to performance_analyst with a complete task prompt.
 - For report planning or report creation across risk, market, and performance results, delegate to report_analyst with a complete task prompt.
 - If a request spans several domains, call the relevant capabilities or subagents, then synthesize the result for the user.
+- For flexible last-mile coding work over existing result tables, use run_pi_coding_session after authoritative data has been retrieved.
 - Do not expose raw tool names in normal end-user answers unless the user asks for implementation detail.
 - If a scaffolded capability returns not_implemented, state which implementation is missing and what interface is already available.
 
